@@ -3,133 +3,180 @@ import java.util.Scanner;
 
 public class Main {
     static final int MAX_HP = 40;
-    static final int HEAL = 8;
-    static final int REWARD = 20;
-
-    static boolean canEnter(String heroClass, int level, boolean shield) {
-        return level >= 10 && (shield || heroClass.equals("маг"));
-    }
-
-    static int afterDamage(int hp, int damage) {
-        return Math.max(0, hp - damage);
-    }
-
-    static int afterHealing(int hp) {
-        return Math.min(MAX_HP, hp + HEAL);
-    }
-
-    static void printResult(String name, int wins, int xp, int hp, String result) {
-        System.out.println("\nИмя: " + name + "; вариант Б — Пещера");
-        System.out.println("Побед: " + wins + "; XP: " + xp + "; HP: " + hp);
-        System.out.println("Итог: " + result);
-    }
-
-    static String readLine(Scanner scanner, String prompt) {
-        System.out.println(prompt);
-        return scanner.hasNextLine() ? scanner.nextLine().strip() : null;
-    }
-
-    static Integer readInt(Scanner scanner, String prompt) {
-        while (true) {
-            System.out.println(prompt);
-            if (scanner.hasNextInt()) {
-                int value = scanner.nextInt();
-                if (scanner.hasNextLine()) scanner.nextLine();
-                return value;
-            }
-            if (!scanner.hasNextLine()) return null;
-            scanner.nextLine();
-            System.out.println("Введите целое число.");
-        }
-    }
+    static final int HEAL_AMOUNT = 8;
+    static final int WIN_XP = 20;
+    static final int MIN_LEVEL = 10;
+    static final int HERO_DAMAGE = 10;
+    static final String VARIANT = "А — Руины";
 
     public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
-            String name;
-            while (true) {
-                name = readLine(scanner, "Имя героя (1–30 символов):");
-                if (name == null) { System.out.println("Ввод завершён. Регистрация прервана."); return; }
-                if (name.length() >= 1 && name.length() <= 30) break;
-                System.out.println("Неверная длина имени.");
-            }
-            String heroClass;
-            while (true) {
-                heroClass = readLine(scanner, "Класс: воин, маг или лучник:");
-                if (heroClass == null) { System.out.println("Ввод завершён. Регистрация прервана."); return; }
-                heroClass = heroClass.toLowerCase(Locale.ROOT);
-                if (heroClass.equals("воин") || heroClass.equals("маг") || heroClass.equals("лучник")) break;
-                System.out.println("Неизвестный класс.");
-            }
-            Integer level;
-            while (true) {
-                level = readInt(scanner, "Уровень (1–80):");
-                if (level == null) { System.out.println("Ввод завершён. Регистрация прервана."); return; }
-                if (level >= 1 && level <= 80) break;
-                System.out.println("Уровень должен быть от 1 до 80.");
-            }
-            boolean shield;
-            while (true) {
-                String answer = readLine(scanner, "Есть щит? да/нет:");
-                if (answer == null) { System.out.println("Ввод завершён. Регистрация прервана."); return; }
-                answer = answer.toLowerCase(Locale.ROOT);
-                if (answer.equals("да") || answer.equals("нет")) {
-                    shield = answer.equals("да");
-                    break;
-                }
-                System.out.println("Ответьте да или нет.");
-            }
+            String name = readName(scanner);
+            if (name == null) return;
+            String heroClass = readClass(scanner);
+            if (heroClass == null) return;
+            Integer level = readLevel(scanner);
+            if (level == null) return;
+            Boolean shield = readShield(scanner);
+            if (shield == null) return;
+
             if (!canEnter(heroClass, level, shield)) {
-                System.out.println(level < 10 ? "Отказ: уровень ниже 10." : "Отказ: нужен щит или класс маг.");
+                if (level < MIN_LEVEL) {
+                    System.out.println("Отказ: уровень должен быть не ниже " + MIN_LEVEL);
+                } else {
+                    System.out.println("Отказ: нужен щит или класс маг.");
+                }
                 return;
             }
             System.out.println("Допущен: " + name + ", " + heroClass);
-            String[] enemies = {"Паук", "Гоблин", "Огр"};
-            int[] enemyHealth = {14, 20, 26};
-            int[] enemyDamage = {5, 7, 9};
-            int strength = 11;
-            int hp = MAX_HP, xp = 0, wins = 0;
-            boolean interrupted = false;
-            for (int i = 0; i < enemies.length && hp > 0 && !interrupted; i++) {
-                int enemyHp = enemyHealth[i];
-                boolean healed = false;
-                System.out.println("\nПротивник: " + enemies[i]);
-                while (enemyHp > 0 && hp > 0 && !interrupted) {
-                    System.out.println("HP героя: " + hp + "; HP противника: " + enemyHp);
-                    Integer command = readInt(scanner, "1 — атака, 2 — лечение, 0 — выход:");
+            String[] names = {"Крыса", "Скелет", "Страж"};
+            int[] health = {12, 18, 24};
+            int[] damage = {4, 6, 8};
+            int heroHp = MAX_HP;
+            int xp = 0;
+            int wins = 0;
+            boolean gameOver = false;
+            String result = "Игра прервана";
+
+            for (int i = 0; i < names.length && !gameOver; i++) {
+                int enemyHp = health[i];
+                boolean healUsed = false;
+                System.out.println("Раунд " + (i + 1) + ": " + names[i]);
+                while (heroHp > 0 && enemyHp > 0 && !gameOver) {
+                    System.out.println("HP героя: " + heroHp + ", HP противника: " + enemyHp);
+                    Integer command = readInt(scanner, "1 — атака, 2 — лечение, 0 — выход: ");
                     if (command == null) {
-                        System.out.println("Ввод завершён.");
-                        interrupted = true;
+                        gameOver = true;
                         break;
                     }
+                    boolean enemyTurn = false;
                     switch (command) {
-                        case 0:
-                            interrupted = true;
-                            break;
                         case 1:
-                            enemyHp = afterDamage(enemyHp, strength);
-                            if (enemyHp > 0) hp = afterDamage(hp, enemyDamage[i]);
+                            enemyHp = hpAfterDamage(enemyHp, HERO_DAMAGE);
+                            enemyTurn = enemyHp > 0;
                             break;
                         case 2:
-                            if (healed) {
-                                System.out.println("Лечение в этом бою уже использовано.");
+                            if (healUsed) {
+                                System.out.println("Лечение уже использовано в этом бою.");
                             } else {
-                                hp = afterHealing(hp);
-                                healed = true;
-                                hp = afterDamage(hp, enemyDamage[i]);
+                                heroHp = hpAfterHeal(heroHp);
+                                healUsed = true;
+                                enemyTurn = true;
+                                System.out.println("HP после лечения: " + heroHp);
                             }
+                            break;
+                        case 0:
+                            gameOver = true;
                             break;
                         default:
                             System.out.println("Неизвестная команда.");
                     }
+                    if (enemyTurn) {
+                        heroHp = hpAfterDamage(heroHp, damage[i]);
+                        System.out.println(names[i] + " наносит " + damage[i] + " урона.");
+                    }
+                    if (heroHp == 0) {
+                        result = "Поражение";
+                        gameOver = true;
+                    }
                 }
-                if (enemyHp == 0) {
+                if (enemyHp == 0 && !gameOver) {
                     wins++;
-                    xp += REWARD;
-                    System.out.println("Раунд " + (i + 1) + ": победа, HP героя " + hp + ", XP " + xp);
+                    xp += WIN_XP;
+                    System.out.println("Раунд " + (i + 1) + ": победа, HP героя " + heroHp + ", XP " + xp);
                 }
             }
-            String result = interrupted ? "Игра прервана" : hp == 0 ? "Поражение" : "Арена пройдена";
-            printResult(name, wins, xp, hp, result);
+            if (wins == names.length) result = "Арена пройдена";
+            printSummary(name, wins, xp, heroHp, result);
+        }
+    }
+
+    static boolean canEnter(String heroClass, int level, boolean shield) {
+        return level >= MIN_LEVEL && (shield || heroClass.equals("маг"));
+    }
+
+    static int hpAfterDamage(int hp, int damage) {
+        return Math.max(0, hp - damage);
+    }
+
+    static int hpAfterHeal(int hp) {
+        return Math.min(MAX_HP, hp + HEAL_AMOUNT);
+    }
+
+    static void printSummary(String name, int wins, int xp, int hp, String result) {
+        System.out.println("\nИмя: " + name);
+        System.out.println("Вариант: " + VARIANT);
+        System.out.println("Побед: " + wins + ", XP: " + xp + ", HP: " + hp);
+        System.out.println("Итог: " + result);
+    }
+
+    static String readLine(Scanner scanner, String prompt) {
+        System.out.print(prompt);
+        if (!scanner.hasNextLine()) {
+            System.out.println("Ввод закончился.");
+            return null;
+        }
+        return scanner.nextLine().strip();
+    }
+
+    static Integer readInt(Scanner scanner, String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            if (!scanner.hasNextInt()) {
+                if (!scanner.hasNextLine()) {
+                    System.out.println("Ввод закончился.");
+                    return null;
+                }
+                scanner.nextLine();
+                System.out.println("Введите целое число.");
+                continue;
+            }
+            int value = scanner.nextInt();
+            if (!scanner.hasNextLine()) {
+                System.out.println("Ввод закончился.");
+                return null;
+            }
+            scanner.nextLine();
+            return value;
+        }
+    }
+
+    static String readName(Scanner scanner) {
+        while (true) {
+            String value = readLine(scanner, "Имя: ");
+            if (value == null) return null;
+            if (value.length() >= 1 && value.length() <= 30) return value;
+            System.out.println("Имя должно содержать от 1 до 30 символов.");
+        }
+    }
+
+    static String readClass(Scanner scanner) {
+        while (true) {
+            String value = readLine(scanner, "Класс (воин, маг, лучник): ");
+            if (value == null) return null;
+            value = value.toLowerCase(Locale.ROOT);
+            if (value.equals("воин") || value.equals("маг") || value.equals("лучник")) return value;
+            System.out.println("Неизвестный класс.");
+        }
+    }
+
+    static Integer readLevel(Scanner scanner) {
+        while (true) {
+            Integer value = readInt(scanner, "Уровень (1–80): ");
+            if (value == null) return null;
+            if (value >= 1 && value <= 80) return value;
+            System.out.println("Уровень должен быть от 1 до 80.");
+        }
+    }
+
+    static Boolean readShield(Scanner scanner) {
+        while (true) {
+            String value = readLine(scanner, "Есть щит (да/нет): ");
+            if (value == null) return null;
+            value = value.toLowerCase(Locale.ROOT);
+            if (value.equals("да")) return true;
+            if (value.equals("нет")) return false;
+            System.out.println("Введите да или нет.");
         }
     }
 }
